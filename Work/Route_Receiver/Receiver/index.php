@@ -583,7 +583,7 @@ function start(channel)
 		console.log("*** Time: " + (monitoringTime/1000) + ", Errors: " + fragmentErrorRegistry.reduce(function(pv, cv) { return pv + cv; }, 0) + ", TH: " + monitoringWindowSize*ErrorTH + ", Result: " + (fragmentErrorRegistry.reduce(function(pv, cv) { return pv + cv; }, 0) > monitoringWindowSize*ErrorTH));
 	if(fragmentErrorRegistry.reduce(function(pv, cv) { return pv + cv; }, 0) > monitoringWindowSize*ErrorTH) 
 	 {
-		 setTimeout(function () {start(udchannel)}, 0);
+		// setTimeout(function () {start(udchannel)}, 0);
 		 monitoringTime = 0;
 		 clearInterval(monitorProcess);
 		 console.log("************************ Triggering Re-tunein");

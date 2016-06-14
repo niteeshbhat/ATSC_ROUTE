@@ -8,7 +8,7 @@
 #DASHContent=ToS720p_0_5
 #DASHContent2=Elysium720p_0_5
 DASHContent=Elysium_1_0
-#DASHContent2=ElysiumLC_0_5
+DASHContent2=ToS_1_0
 
 #if [ "$#" -gt 0 ] && [ "$1" -eq 1000 ]
 #then
@@ -57,10 +57,10 @@ echo "Converting MPD"
 
 #Brackets are used to temporarilSimAdminy change working directory
 ./ConvertMPD.sh $DASHContent MultiRate.mpd $Delay
-#./ConvertMPD.sh $DASHContent2 MultiRate.mpd $Delay2
+./ConvertMPD.sh $DASHContent2 MultiRate.mpd $Delay2
 
 chmod 777 $DASHContent/*
-#chmod 777 $DASHContent2/*
+chmod 777 $DASHContent2/*
 
 echo "Done"
 
@@ -75,12 +75,12 @@ killall flute_sender
 
 
 #(cd $FLUTESender && ./flute -S -r:$bitRate -B:$DASHContent -Q -f:$fdtVid -m:224.1.1.1 -p:4000 -t:1 -v:4 -y:$videoSegDur -Y:$videoSegDur -J:$Log)
-(cd $FLUTESender && ./flute_sender -S -r:$bitRate -B:$DASHContent -f:$DASHContent/$fdtMPD -d:$sdp -Y:$encodingSymbolsPerPacket -J:$Log -C&)
-(cd $FLUTESender && ./flute_sender -S -r:$bitRate -B:$DASHContent -f:$DASHContent/$fdtVid -d:$sdp2 -y:$DASHContent/$FLUTEVideoInput -Y:$encodingSymbolsPerPacket -J:$Log2&)
-(cd $FLUTESender && ./flute_sender -S -r:$bitRate -B:$DASHContent -f:$DASHContent/$fdtAud -d:$sdp3 -y:$DASHContent/$FLUTEAudioInput -Y:$encodingSymbolsPerPacket -J:$Log3&)
+(cd $FLUTESender && ./flute_sender -S -r:$bitRate -B:$DASHContent -f:$DASHContent/$fdtMPD -d:$sdp5 -Y:$encodingSymbolsPerPacket -J:$Log -C&)
+(cd $FLUTESender && ./flute_sender -S -r:$bitRate -B:$DASHContent -f:$DASHContent/$fdtVid -d:$sdp -y:$DASHContent/$FLUTEVideoInput -Y:$encodingSymbolsPerPacket -J:$Log2&)
+(cd $FLUTESender && ./flute_sender -S -r:$bitRate -B:$DASHContent -f:$DASHContent/$fdtAud -d:$sdp2 -y:$DASHContent/$FLUTEAudioInput -Y:$encodingSymbolsPerPacket -J:$Log3&)
 
 #Sending of second video
-#(cd $FLUTESender && ./flute_sender -S -r:$bitRate -B:$DASHContent -f:$DASHContent/$fdtMPD -d:$sdp4 -Y:$encodingSymbolsPerPacket -J:$Log4&)
-#(cd $FLUTESender && ./flute_sender -S -r:$bitRate -B:$DASHContent2 -f:$DASHContent2/$fdtVid -d:$sdp5 -y:$DASHContent2/$FLUTEVideoInput -Y:$encodingSymbolsPerPacket -J:$Log5&)
-#(cd $FLUTESender && ./flute_sender -S -r:$bitRate -B:$DASHContent2 -f:$DASHContent2/$fdtAud -d:$sdp6 -y:$DASHContent2/$FLUTEAudioInput -Y:$encodingSymbolsPerPacket -J:$Log6 && fg)
+(cd $FLUTESender && ./flute_sender -S -r:$bitRate -B:$DASHContent2 -f:$DASHContent2/$fdtMPD -d:$sdp6 -Y:$encodingSymbolsPerPacket -J:$Log4 -C&)
+(cd $FLUTESender && ./flute_sender -S -r:$bitRate -B:$DASHContent2 -f:$DASHContent2/$fdtVid -d:$sdp3 -y:$DASHContent2/$FLUTEVideoInput -Y:$encodingSymbolsPerPacket -J:$Log5&)
+(cd $FLUTESender && ./flute_sender -S -r:$bitRate -B:$DASHContent2 -f:$DASHContent2/$fdtAud -d:$sdp4 -y:$DASHContent2/$FLUTEAudioInput -Y:$encodingSymbolsPerPacket -J:$Log6 && fg)
 
