@@ -40,6 +40,9 @@
 #include "../flutelib/parse_args.h"
 extern unsigned short numEncSymbPerPacket; /*<This is configurable in the program parameters>*/
 extern	FILE* logFilePtr;
+//#include "../flutelib/flute.h"
+extern FILE* deliveryLog; //To log ESI and byte ranges.
+extern unsigned int workingPort;
 //Below variables are used to retain values read from input file while sending the different segments
 extern  FILE * FLUTEInputFile;
 extern  char str[1000];

@@ -54,7 +54,7 @@ unsigned short numEncSymbPerPacket = 1L; /*< The number of symbols per packet. P
 char* sendingTimesFile="";		 /**<If no file is passed using -y:value, no delays would be introduced while sending segments>*/
 char* logFile= "Log_Times.txt";  /**< This is used to Log time instants for performance evaluation >*/
 FILE* logFilePtr;
-BOOL sendFDTAfterObj = FALSE;		/**< If set to FALSE, then FDT is sent before sending object. If set to TRUE, FDT is sent after sending object >*/
+BOOL sendFDTAfterObj = TRUE;		/**< If set to FALSE, then FDT is sent before sending object. If set to TRUE, FDT is sent after sending object >*/
 //END
 
 int parse_args(int argc, char **argv, arguments_t *a) {

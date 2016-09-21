@@ -126,11 +126,11 @@ $tsi_a=$s_tsid->RS[0]->LS[1]['tsi'];
 $port=$s_tsid->RS[0]['dport'];
 $port_v=$port+$tsi_v;
 $port_a=$port+$tsi_a;
-$cmd=  "sudo nice --20 ./flute -A -B:". $DASHContent ." -m:224.1.1.1 -s:"  .$sourceIP . " -p:".$port_v." -t:".$tsi_v. " -Q -Y:" . $encodingSymbolsPerPacket . " -J:" . $Log2 . " > /dev/null &"; //> logout1.txt &";
+$cmd=  "sudo nice --20 ./flute -A -B:". $DASHContent ." -m:224.1.1.1 -s:"  .$sourceIP . " -p:".$port_v." -t:".$tsi_v. " -Q -Y:" . $encodingSymbolsPerPacket . " -J:" . $Log2 . " > logout1.txt &";// /dev/null &
 exec($cmd);
 
 # Start second flute sender
-$cmd=  "sudo nice --20 ./flute -A -B:". $DASHContent ." -m:224.1.1.1 -s:"  .$sourceIP . " -p:".$port_a." -t:".$tsi_a. " -Q -Y:" . $encodingSymbolsPerPacket . " -J:" . $Log3 . " > /dev/null &"; // > logout2.txt &";
+$cmd=  "sudo nice --20 ./flute -A -B:". $DASHContent ." -m:224.1.1.1 -s:"  .$sourceIP . " -p:".$port_a." -t:".$tsi_a. " -Q -Y:" . $encodingSymbolsPerPacket . " -J:" . $Log3 . " > logout2.txt &";// /dev/null &
 exec($cmd);
 
 $micro_date = microtime();

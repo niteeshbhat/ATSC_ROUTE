@@ -267,6 +267,8 @@ var fullScreenButton;
 var volumeValue;
 var audiotrackflag=0;
 var audio_num_list_entries=2; // Change for different number of audio tracks.
+var sumChangeTime=0;
+var numSwitches=0;
 
 
 window.onload = function()
@@ -427,11 +429,19 @@ window.onbeforeunload = function (e) {
 function playingNow(e)
 {
 	logger.clear();
-    logger.log("Playing Channel " + udchannel);
+	 TuneInPlay = (Date.now() - switchStartTime);
+	 ///For Demo
+    sumChangeTime = sumChangeTime + totalTuneinDuration;
+    numSwitches = numSwitches + 1;
+	logger.clear();
+    logger.log('Last channel change time: ' + totalTuneinDuration + " msec, Average: " + (sumChangeTime/numSwitches).toFixed(2) + " msec");
+    ///
+    //logger.log("Playing Channel " + udchannel);
     var timeNow = new Date();
     console.log("***************** Playback started, " + timeNow + timeNow.getMilliseconds());
     var img = document.getElementById('progress');
     img.style.visibility = 'visible';
+    
     
 	img = document.getElementById('settingsbtn');
     img.style.visibility = 'visible';	
@@ -459,8 +469,8 @@ function switchChannel()
  }
  
 var alternateServerIP = "";
-var alternateLocation1 = "/ATSC_ROUTE/Work/Route_Sender/bin/ToS_1_0";
-var alternateLocation2 = "/ATSC_ROUTE/Work/Route_Sender/bin/Elysium_1_0";
+var alternateLocation1 = "/ATSC_ROUTE/Work/Route_Sender/bin/Elysium_1_0";
+var alternateLocation2 = "/ATSC_ROUTE/Work/Route_Sender/bin/ToS_1_0";
 var alternateLocationK = "/ATSC_ROUTE/Work/Route_Sender/bin/Ita_ToS_1_0";
 var switchAudio = false;
 var monitoringInterval = 200;
@@ -524,7 +534,7 @@ function start(channel)
             {channel:channel},
             function(response)
             {
-                totalTuneinDuration += (Date.now() - switchStartTime);
+                
 				result = JSON.parse(response);
                 
 				var localChannel = result[0];
@@ -543,6 +553,7 @@ function start(channel)
                 // Start player
                 var timeNow = new Date();
                 console.log("*********** Instructing to play MPD: " + mpdURL + timeNow + timeNow.getMilliseconds());
+                totalTuneinDuration = (Date.now() - switchStartTime);
                 player.attachSource(mpdURL);
                 video.play();
                 //setTimeout(function () {window.open("dash.js/samples/dash-if-reference-player/index.html?url=" + mpdURL)}, 0);

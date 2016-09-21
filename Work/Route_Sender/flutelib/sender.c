@@ -58,7 +58,7 @@
 
 //Malek El Khatib 14.08.2014
 //The below variables need to retain value when going between sender.c and alc_tx.c (i.e. while sending the different segments
-  FILE * FLUTEInputFile, *fabcd;
+  FILE * FLUTEInputFile;
   char str[1000];
   char * tok;
   unsigned long long fileValue;
@@ -95,9 +95,9 @@ int send_fdt_instance(char *fdt_instance, unsigned long long fdt_inst_len, int s
   int retval = 0;
   unsigned int sbn = 0;
   char *buf = NULL;
-FILE *fabcd;
+
   blocking_struct_t *bs;                
-                                                                                                                          
+                                                                                                                        
   transfer_len = fdt_inst_len;
   bytes_left = (int)transfer_len;
    
@@ -120,6 +120,7 @@ FILE *fabcd;
   /* Let's compute the blocking structure */
   
   bs = compute_blocking_structure(transfer_len, max_sblen, eslen);
+
 
   while(sbn < bs->N) {
 
@@ -208,7 +209,7 @@ int send_file(char *tx_file, int s_id, int tx_mode, unsigned short es_len, unsig
 	double print_percent;
 
 	FILE *fp;	
- 
+
 #ifdef _MSC_VER
 	struct __stat64 file_stats;
 #else
@@ -306,6 +307,7 @@ int send_file(char *tx_file, int s_id, int tx_mode, unsigned short es_len, unsig
 	
 	/* Let's compute the blocking structure */
 	bs = compute_blocking_structure(transfer_len, max_sb_len, es_len);
+
 
 	//Malek El Khatib 21.07.2014
 	//Start
@@ -405,7 +407,7 @@ int send_file(char *tx_file, int s_id, int tx_mode, unsigned short es_len, unsig
 		  return -2;
 		}
 
-		if(fdt_inst_buf != NULL) {
+		/*if(fdt_inst_buf != NULL) {
 			sent = get_object_sent_bytes(s_id);
 			print_percent = get_object_last_print_tx_percent(s_id);
 
@@ -415,7 +417,7 @@ int send_file(char *tx_file, int s_id, int tx_mode, unsigned short es_len, unsig
 				retval = send_fdt_instance(fdt_inst_buf, fdt_inst_len, s_id, tx_mode, s->def_eslen,
 							   s->def_max_sblen, s->def_fec_enc_id, s->def_fec_inst_id,
 							   verbosity);
-				 
+				     
 					
 				if(retval == -1) {
 					free(bs);
@@ -433,7 +435,7 @@ int send_file(char *tx_file, int s_id, int tx_mode, unsigned short es_len, unsig
 				set_object_sent_bytes(s_id, sent);
 				set_object_last_print_tx_percent(s_id, print_percent);
 			}
-		}
+		}*/
 
         sbn++;
 
@@ -2278,7 +2280,7 @@ int fdtbasedsend(flute_sender_t *sender, int tx_mode, arguments_t *a) {
   
   unsigned long long curr_time;
   
-  
+  //FILE *fnames;
   int sent = 0 ,z;
   BOOL incomplete_fdt = FALSE;
   
@@ -2304,7 +2306,7 @@ int fdtbasedsend(flute_sender_t *sender, int tx_mode, arguments_t *a) {
       sender->efdt->complete = TRUE;
     }
     
-    /* Send "Complete FDT" with all File definitions at the beginning of the carousel */
+    /* Send "Complete FDT/EFDT" with all File definitions at the beginning of the carousel */
     
     file = sender->fdt->file_list;
    //for(z=0;z<25;z++){
@@ -2572,7 +2574,8 @@ int fdtbasedsend(flute_sender_t *sender, int tx_mode, arguments_t *a) {
 	  //Malek El Khatib 16.07.2014
 	  //Start
 	  fprintf(logFilePtr,"%s ", uri->path);		//Malek El Khatib 20.08.2014	Added this
-
+	 
+	  
 	  //If sendFDTAfterObj is false then we send the FDT before sending object; hence, same code is replicated below after file sending
 	  if (!sendFDTAfterObj) {
       //END  
@@ -2591,15 +2594,10 @@ int fdtbasedsend(flute_sender_t *sender, int tx_mode, arguments_t *a) {
 		  if(a->complete_fdt != 2) {  
 			  /* Send FDT Instance with next File definition before the file is sent */
 			  //fdt_inst_buf = create_fdt_instance(file, 1, sender->fdt, sender->s_id, &fdt_inst_len);
-			  efdt_inst_buf = create_efdt_instance(file, 1, sender->efdt, sender->s_id, &efdt_inst_len);
+			  efdt_inst_buf = create_efdt_instance(file, 1, sender->efdt, sender->s_id, &efdt_inst_len); //Create EFDT instance instead of FDT instance for ROUTE.
 			 //  efdt_inst_buf = create_efdt_instance(file, sender->efdt->nb_of_files, sender->efdt, sender->s_id, &efdt_inst_len);
-			      FILE *fabcd;
-   fabcd=fopen("ErrorDebugging.txt", "w");
-			 
-		
-			//  fprintf(fabcd, "%llu\n", tmp->toi);
-			  fprintf(fabcd, efdt_inst_buf);
-			  fclose(fabcd);
+			     
+   
 			  if(efdt_inst_buf == NULL) {
 				  free_uri(uri);
 				  return -1;
@@ -2620,7 +2618,7 @@ int fdtbasedsend(flute_sender_t *sender, int tx_mode, arguments_t *a) {
 			  //Malek El Khatib 06.05.2014	 
 			  //Start	  
 			  //Start of FDT Instance Sending	  
-			  gettimeofday(&fdt_time, NULL);
+			gettimeofday(&fdt_time, NULL);
 			  timeInUsec = (unsigned long long)fdt_time.tv_sec*1000000 + (unsigned long long)fdt_time.tv_usec;
 			  fprintf(logFilePtr,"%llu ", timeInUsec);
 			  //END Malek El Khatib
@@ -2743,8 +2741,18 @@ int fdtbasedsend(flute_sender_t *sender, int tx_mode, arguments_t *a) {
 		  
 		  if(a->complete_fdt != 2) {
 			  /* Send FDT Instance with next File definition before the file is sent */
-			 /*fdt_inst_buf = create_fdt_instance(file, 1, sender->fdt, sender->s_id, &fdt_inst_len);
-			  if(fdt_inst_buf == NULL) {
+			 //fdt_inst_buf = create_fdt_instance(file, 1, sender->fdt, sender->s_id, &fdt_inst_len);
+			 efdt_inst_buf = create_efdt_instance(file, 1, sender->efdt, sender->s_id, &efdt_inst_len);//Create EFDT instance instead of FDT instance for ROUTE.
+			
+			/* if(workingPort== 4001){
+			    fnames=fopen("ErrorDebugging.txt", "a");
+			    fprintf(fnames, efdt_inst_buf );
+			    fprintf(fnames, "\n");
+			    fclose(fnames);
+			 }*/
+			
+			
+			  if(efdt_inst_buf == NULL) {
 				  free_uri(uri);
 				  return -1;
 			  }
@@ -2752,11 +2760,11 @@ int fdtbasedsend(flute_sender_t *sender, int tx_mode, arguments_t *a) {
 #ifdef USE_ZLIB
 			  if(a->alc_a.encode_content == ZLIB_FDT || a->alc_a.encode_content == ZLIB_FDT_AND_GZIP_FILES) {
 				  
-				  compr_fdt_inst_buf = buffer_zlib_compress(fdt_inst_buf, fdt_inst_len, &compr_fdt_inst_buf_len);
+				  compr_efdt_inst_buf = buffer_zlib_compress(efdt_inst_buf, efdt_inst_len, &compr_efdt_inst_buf_len);
 
-				  if(compr_fdt_inst_buf == NULL) {
+				  if(compr_efdt_inst_buf == NULL) {
 					  free_uri(uri);
-					  free(fdt_inst_buf);
+					  free(efdt_inst_buf);
 					  return -1;
 				  }	
 			  }
@@ -2769,17 +2777,17 @@ int fdtbasedsend(flute_sender_t *sender, int tx_mode, arguments_t *a) {
       
 #ifdef USE_ZLIB
 			  if(a->alc_a.encode_content == ZLIB_FDT || a->alc_a.encode_content == ZLIB_FDT_AND_GZIP_FILES) {
-				  sent = send_fdt_instance(compr_fdt_inst_buf, compr_fdt_inst_buf_len, sender->s_id, tx_mode, a->alc_a.es_len,
+				  sent = send_fdt_instance(compr_efdt_inst_buf, compr_efdt_inst_buf_len, sender->s_id, tx_mode, a->alc_a.es_len,
 					  a->alc_a.max_sb_len, a->alc_a.fec_enc_id, a->alc_a.fec_inst_id, a->alc_a.verbosity);
 			  }
 			  
 			  else {
-				  sent = send_fdt_instance(fdt_inst_buf, fdt_inst_len, sender->s_id, tx_mode, a->alc_a.es_len, a->alc_a.max_sb_len,
+				  sent = send_fdt_instance(efdt_inst_buf, efdt_inst_len, sender->s_id, tx_mode, a->alc_a.es_len, a->alc_a.max_sb_len,
 					  a->alc_a.fec_enc_id, a->alc_a.fec_inst_id, a->alc_a.verbosity);
 				    
 			  }
 #else
-			  sent = send_fdt_instance(fdt_inst_buf, fdt_inst_len, sender->s_id, tx_mode, a->alc_a.es_len, a->alc_a.max_sb_len,
+			  sent = send_fdt_instance(efdt_inst_buf, efdt_inst_len, sender->s_id, tx_mode, a->alc_a.es_len, a->alc_a.max_sb_len,
 				  a->alc_a.fec_enc_id, a->alc_a.fec_inst_id, a->alc_a.verbosity);
 #endif
 
@@ -2791,10 +2799,10 @@ int fdtbasedsend(flute_sender_t *sender, int tx_mode, arguments_t *a) {
 			  if(sent == -1) {
 #ifdef USE_ZLIB
 			  if(a->alc_a.encode_content == ZLIB_FDT || a->alc_a.encode_content == ZLIB_FDT_AND_GZIP_FILES) {
-				free(compr_fdt_inst_buf);
+				free(compr_efdt_inst_buf);
 			  }
 #endif
-			  free(fdt_inst_buf);
+			  free(efdt_inst_buf);
 			  free_uri(uri);
 			  return -1;
 		}
@@ -2802,13 +2810,13 @@ int fdtbasedsend(flute_sender_t *sender, int tx_mode, arguments_t *a) {
 	  
 #ifdef USE_ZLIB
 				  if(a->alc_a.encode_content == ZLIB_FDT || a->alc_a.encode_content == ZLIB_FDT_AND_GZIP_FILES) {
-					  free(compr_fdt_inst_buf);
+					  free(compr_efdt_inst_buf);
 				  }
 #endif
-				  free(fdt_inst_buf);
+				  free(efdt_inst_buf);
 				  free_uri(uri);
 				  return -2;
-			  }*/
+			  }
 		  }
 	  }
 	  //END
@@ -2822,10 +2830,10 @@ int fdtbasedsend(flute_sender_t *sender, int tx_mode, arguments_t *a) {
       
 #ifdef USE_ZLIB
 		if(a->alc_a.encode_content == ZLIB_FDT || a->alc_a.encode_content == ZLIB_FDT_AND_GZIP_FILES) {
-			free(compr_fdt_inst_buf);
+			free(compr_efdt_inst_buf);
 		}
 #endif
-		free(fdt_inst_buf);
+		free(efdt_inst_buf);
       }
       
       if(sent == -1) {
@@ -2911,7 +2919,7 @@ int sender_in_fdt_based_mode(arguments_t *a, flute_sender_t *sender) {
   unsigned long long curr_time;
 
   struct stat fdt_file_stats;
-  FILE *fp, *fabcd;
+  FILE *fp;
 
   char *buf = NULL;
 
@@ -2951,10 +2959,10 @@ int sender_in_fdt_based_mode(arguments_t *a, flute_sender_t *sender) {
     free(buf);
     return -1;
   }
-  	
+  //Call EFDT decode function instead of FDT function.	
   sender->efdt = decode_efdt_payload(buf);
 
- 
+ //EFDT information is transfered to FDT so that all other FDT dependent functions work as before.
   fdt= calloc(1, sizeof(fdt_t));
   fdt->expires=sender->efdt->expires;
   fdt->file_list= sender->efdt->file_list;

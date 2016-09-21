@@ -161,9 +161,9 @@ and open the template in the editor.
            function Onfunction()
             { 
                 $.ajax({
-                      type: 'POST',
-                      url: "sender.php",
-                      data: {}
+                      //type: 'GET',
+                      url: "sender.php/",
+                     // data: {}
             }).done( function() {
            
             }).fail(function() {

@@ -95,8 +95,14 @@ unsigned long long tsi = 0; /* TSI */
 unsigned long long toi = 0; /* TOI */
 unsigned int sbn = 0;
 unsigned int esi = 0;
-
-
+unsigned int EntryESI=0;
+int TuneInPacket=1;
+extern int TuneInSeg=1;
+extern int firstEntry=1;
+int FirstFileDecode=0;
+int FirstFileOffset;
+int flag_len=1;
+int recvListSize=0;
 long newBufferFullness()
 {
     return fullness;
@@ -192,6 +198,8 @@ int newWriteToBuffer(struct packetBuffer buffer)
         //pktFile = fopen(packetFiles,"w");
         //fwrite(buffer.buffer,1,buffer.length,pktFile);
         //fclose(pktFile);
+	
+	
 	}
     struct packetBuffer *emptySlot = getEmptyBufferSlot();
 
@@ -205,7 +213,9 @@ int newWriteToBuffer(struct packetBuffer buffer)
         fprintf(stdout,"********** Error: Could not allocate buffer\n");
         fprintf(stdout,"********** Error: Could not allocate buffer\n");
         exit(-1);
+	
     }
+   
     memcpy(emptySlot->buffer,buffer.buffer,buffer.length);
 
     fullness++;
@@ -262,6 +272,7 @@ struct packetBuffer getNextBufferIndex()
 
     if(esiStart == NULL)
     {
+      
         fprintf(stdout,"********** Error: Could not find smallest TOI in list\n");
         fprintf(stdout,"********** Error: Could not find smallest TOI in list\n");
         exit(-1);
@@ -271,12 +282,23 @@ struct packetBuffer getNextBufferIndex()
         lastReadESI = 0;
     
     for(current = esiStart ;  ; )
-    {
+    {  
+      //To forward packets to websockets from the Tune-in instant.
+       if(TuneInPacket==1 && EntryESI !=0)
+	{
+	  esiFound=TRUE;
+	  TuneInPacket=0;
+	  lastReadESI=EntryESI;
+	  
+	}
+	// Ends here
+      
         if(current->pb.toi == smallestTOI && current->pb.esi == lastReadESI)
         {
             esiFound = TRUE;
             break;
         }
+       
         
         if(current->nextpb == NULL)
             break;
@@ -374,6 +396,7 @@ struct packetBuffer newReadFromBuffer()
     buffer = getNextBufferIndex();
     if(buffer.length == 0)
     {       
+   
         pthread_mutex_unlock(&bufferLock);
         return buffer;
     }
@@ -382,6 +405,7 @@ struct packetBuffer newReadFromBuffer()
 	{
         static unsigned long long savedTOI = 0;
         static unsigned int savedESI = 0;
+	
 #define mmy buffer.buffer
 		//FILE * tempff = fopen("bufferLogRead.txt","a");
 		//fprintf(tempff,"***AD: fullness %d, toi %llu, esi %u, bytes %2x %2x %2x %2x %2x %2x %2x %2x",fullness,buffer.toi,buffer.esi,mmy[0],mmy[1],mmy[2],mmy[3],mmy[4],mmy[5],mmy[6],mmy[7]);
@@ -1070,6 +1094,9 @@ int analyze_packet(char *data, int len, unsigned long long *toir, alc_channel_t 
 
 	unsigned short j = 0;
 	unsigned short nb_of_symbols = 0;
+	unsigned long long timeInUsec = 0L;		//Used later for timing purposes
+	struct timeval processing_time;
+	FILE *fafter;
 
     hdrlen = 0;
     tsi = 0; /* TSI */
@@ -1248,7 +1275,7 @@ int analyze_packet(char *data, int len, unsigned long long *toir, alc_channel_t 
 	}
     
     *toir = toi;
-
+/*NiteeshThe original code for reburring is below
 	if(!toi == FDT_TOI) {
 
 		wanted_obj = get_wanted_object(ch->s, toi);
@@ -1258,8 +1285,15 @@ int analyze_packet(char *data, int len, unsigned long long *toir, alc_channel_t 
 			//Malek El Khatib
 			//Start 12.11.2014
 			// Always rebuffer since if fdt is sent at beginning, a packet might be dropped
-			////if(ch->s->rx_fdt_instance_list == NULL || ch->s->waiting_fdt_instance == TRUE /*Malek El Khatib 16.07.2014*/ || sendFDTAfterObj ==TRUE /*END*/) {
+			////if(ch->s->rx_fdt_instance_list == NULL || ch->s->waiting_fdt_instance == TRUE /*Malek El Khatib 16.07.2014*//*|| sendFDTAfterObj ==TRUE /*END) {
 				printf("MalekElKhatib: Packet rebuffering for toi %i\n",toi);
+			esi = ntohl(*(unsigned int*)((char*)def_lct_hdr + hdrlen));
+		//fprintf(logFilePtr,"SendFDTAfterObj %d\n",sendFDTAfterObj);
+			fprintf(logFilePtr, "%s", ch->s->waiting_fdt_instance );
+		fprintf(logFilePtr,"ESI top %d\n",esi);
+		fprintf(logFilePtr, "WaitingFDT ");
+		//fprintf(logFilePtr,"HeaderLength at wantedObj point %d\n",hdrlen);
+		//fprintf(logFilePtr,"TOI %d\n",toi);
 				return WAITING_FDT;
 			////}
 			////else {printf("MALEK_WANTED PACKET IS DROPPED2\n");
@@ -1268,7 +1302,7 @@ int analyze_packet(char *data, int len, unsigned long long *toir, alc_channel_t 
 			////	return HDR_ERROR;
 			////}
 
-		}
+	/*	}
 
 		es_len = wanted_obj->es_len;
 		max_sb_len = wanted_obj->max_sb_len;
@@ -1284,8 +1318,9 @@ int analyze_packet(char *data, int len, unsigned long long *toir, alc_channel_t 
 		else {
 			fec_inst_id = wanted_obj->fec_inst_id;
 		}
-	}
-
+	}*/
+	
+//fprintf(logFilePtr, "\nNow i am not waiting fdt\n ");
 	fec_enc_id = def_lct_hdr->codepoint;
 
 	if(!(fec_enc_id == COM_NO_C_FEC_ENC_ID || fec_enc_id == RS_FEC_ENC_ID ||
@@ -1476,6 +1511,10 @@ int analyze_packet(char *data, int len, unsigned long long *toir, alc_channel_t 
 		//esi = (word & 0xFFFF);
 		esi = ntohl(*(unsigned int*)((char*)def_lct_hdr + hdrlen));
 		//End
+		
+		fprintf(logFilePtr,"ESI down %d\n",esi);
+		
+		//fprintf(logFilePtr,"HeaderLength at ESI point %d\n",hdrlen);
 		hdrlen += 4;
 	}
 	else if(fec_enc_id == RS_FEC_ENC_ID) {
@@ -1514,7 +1553,60 @@ int analyze_packet(char *data, int len, unsigned long long *toir, alc_channel_t 
 		esi = (word & 0xFFFF);
 		hdrlen += 4;
 	}
+	
+/*Temporary Waiting FDT code*/
+if(!toi == FDT_TOI) {
 
+		wanted_obj = get_wanted_object(ch->s, toi);
+ 
+		if(wanted_obj == NULL) {
+		
+			//Malek El Khatib
+			//Start 12.11.2014
+			// Always rebuffer since if fdt is sent at beginning, a packet might be dropped
+			////if(ch->s->rx_fdt_instance_list == NULL || ch->s->waiting_fdt_instance == TRUE /*Malek El Khatib 16.07.2014*//* || sendFDTAfterObj ==TRUE /*END*//*){
+				printf("MalekElKhatib: Packet rebuffering for toi %i\n",toi);
+		//	esi = ntohl(*(unsigned int*)((char*)def_lct_hdr + hdrlen));
+				
+		//fprintf(logFilePtr,"ESI %d\n",esi);
+		fprintf(logFilePtr, "WaitingFDT ");
+		//fprintf(logFilePtr,"HeaderLength at wantedObj point %d\n",hdrlen);
+		//fprintf(logFilePtr,"TOI %d\n",toi);
+		if(workingPort==4001 || workingPort==4003){
+		if(firstEntry==1)
+		{
+		 FILE* UnicastLog=fopen("UnicastLog.txt","w");
+		  fprintf(UnicastLog,"Entry TOI=%d\n",toi);
+		  fprintf(UnicastLog,"Entry ESI=%d\n",esi);
+		  fclose(UnicastLog);
+		  firstEntry=0;
+		  EntryESI=esi;
+		}
+		}
+				return WAITING_FDT;
+			////}
+			////else {printf("MALEK_WANTED PACKET IS DROPPED2\n");
+				/*printf("Packet to not wanted toi: %i\n", toi);
+				fflush(stdout);*/
+			////	return HDR_ERROR;
+			////}
+
+		}
+		es_len = wanted_obj->es_len;
+		max_sb_len = wanted_obj->max_sb_len;
+		max_nb_of_es = wanted_obj->max_nb_of_es;
+		fec_enc_id = wanted_obj->fec_enc_id;
+		transfer_len = wanted_obj->transfer_len;
+		content_enc_algo = wanted_obj->content_enc_algo;
+
+		if(fec_enc_id == RS_FEC_ENC_ID) {
+			finite_field = wanted_obj->finite_field;
+			nb_of_es_per_group = wanted_obj->nb_of_es_per_group;
+		}
+		else {
+			fec_inst_id = wanted_obj->fec_inst_id;
+		}
+	}
 	/* TODO: check if instance_id is set --> EXT_FDT header exists in packet */
 
 	if(len - hdrlen != 0) {
@@ -1602,9 +1694,11 @@ int analyze_packet(char *data, int len, unsigned long long *toir, alc_channel_t 
 			/* Check if object already exist */
 			if(toi == FDT_TOI) {
 				trans_obj = object_exist(fdt_instance_id, ch->s, 0);
+				
 			}
 			else {
 				trans_obj = object_exist(toi, ch->s, 1);
+				
 			}
 
 			if(trans_obj == NULL) {
@@ -1623,6 +1717,7 @@ int analyze_packet(char *data, int len, unsigned long long *toir, alc_channel_t 
 					trans_obj->toi = toi;
 
 
+    
 					if(ch->s->rx_memory_mode == 1 || ch->s->rx_memory_mode == 2) {
 
 						memset(filename, 0, MAX_PATH_LENGTH);
@@ -1643,7 +1738,7 @@ int analyze_packet(char *data, int len, unsigned long long *toir, alc_channel_t 
 							mktemp(filename);
 							strcat(filename, PAD_SUFFIX);
 						}
-
+						
 						/* Alloc memory for tmp_filename */
 						if(!(trans_obj->tmp_filename = (char*)calloc(strlen(filename)+1, sizeof(char)))) {
 							printf("Could not alloc memory for tmp_filename!\n");
@@ -1719,7 +1814,10 @@ int analyze_packet(char *data, int len, unsigned long long *toir, alc_channel_t 
 				trans_block->sbn = sbn;
 
 				//Malek El Khatib 11.08.2014
+				
+				
 				trans_block->nb_of_rx_symbols = 0;
+				
 				//End
 
 				if(fec_enc_id == COM_NO_C_FEC_ENC_ID) { 
@@ -1769,7 +1867,27 @@ int analyze_packet(char *data, int len, unsigned long long *toir, alc_channel_t 
 				if(insert_unit(trans_unit, trans_block, trans_obj) != 1) {
 
 					//Malek El Khatib
+					//Niteesh- To save incomplete first segment.
+					 if(workingPort == 4001 || workingPort == 4003){
+					  if (TuneInSeg==1 && toi != FDT_TOI && sendFDTAfterObj== TRUE){
+				    //fafter=fopen("ErrorDebug.txt", "a");
+	
+				    //fprintf(fafter, "\nThis is inside new part %d \n",numEncSymbPerPacket);
+				   // fprintf(fafter, "ESI once it comes down %d", esi);
+				   //fprintf(fafter, "ListSize %d", recvListSize);
+				     //fclose(fafter);
+				     if(trans_block->k != 1){
+				      trans_block->nb_of_rx_units = trans_block->k-recvListSize+2; //recvList contains buffered packets before EFDT arrival.
+				       
+				       FirstFileDecode=1;
+				       FirstFileOffset=trans_block->k-recvListSize+1;
+				     }
+				    TuneInSeg=0;
+				 }
+				}
+				
 					trans_block->nb_of_rx_symbols += nb_of_symbols;
+				
 					//End
 
 					if(toi == FDT_TOI || ch->s->rx_memory_mode == 0) { 
@@ -1827,6 +1945,7 @@ int analyze_packet(char *data, int len, unsigned long long *toir, alc_channel_t 
 					free(trans_unit);
 #endif
 					return DUP_PACKET;
+					
 				}
 			}
 			else {
@@ -1838,6 +1957,7 @@ int analyze_packet(char *data, int len, unsigned long long *toir, alc_channel_t 
 				free(trans_unit);
 #endif
 				return DUP_PACKET;
+				
 			}
 
 			if(toi != FDT_TOI) {
@@ -1923,9 +2043,9 @@ int analyze_packet(char *data, int len, unsigned long long *toir, alc_channel_t 
 								( (unsigned long long)trans_block->sbn - (unsigned long long)trans_obj->bs->I )  *
 								(unsigned long long)trans_obj->bs->A_small ) * (unsigned long long)es_len );
 						}
-
+						
 						/* set correct position */
-
+						
 						if(lseek64(trans_obj->fd, pos, SEEK_SET) == -1) {
 
 							printf("alc_rx.c line 1111 lseek error, toi: %llu\n", toi);
@@ -1934,7 +2054,13 @@ int analyze_packet(char *data, int len, unsigned long long *toir, alc_channel_t 
 							set_session_state(ch->s->s_id, SExiting);
 							return MEM_ERROR;
 						}
-
+						//if(workingPort==4001 || workingPort==4003){
+						  // To save incomplete first segment with size matched with the total arrived packets.
+						if(FirstFileDecode==1 && sendFDTAfterObj==TRUE){
+						  block_len=block_len-(FirstFileOffset)*es_len;
+						  FirstFileDecode=0;
+						}
+						//}
 						if(write(trans_obj->fd, buf, (unsigned int)block_len) == -1) {
 							printf("write error, toi: %llu, sbn: %i\n", toi, sbn);
 							fflush(stdout);
@@ -1989,30 +2115,32 @@ void addPacket(unsigned long long toi, unsigned long long tsi, unsigned int sbn,
 
 void cachePacket(unsigned long long toi, unsigned long long tsi, unsigned int sbn, unsigned int esi, char *buffer, int len)
 {
-    if(tunedIn == 0 && toi == 0)
-        tunedIn = 1;
+//    if(tunedIn == 0 && toi == 0)
+//        tunedIn = 1;
     
-    if(tunedIn == 1)
-    {
-        if(workingPort == 4001 || workingPort == 4003)
+//    if(tunedIn == 1)
+//    {
+        /*if(workingPort == 4001 || workingPort == 4003)
         {
             if( toi%2 != 0 )
                 tunedIn = 2;
         }
         else if(workingPort == 4002 || workingPort == 4004)
         {
-            if( (toi - 2) % 3 == 0 )
+            if( (toi-2) % 3 == 0 )
                 tunedIn = 2;
-        }
-    }
+        }*/
+//        if( toi%2 != 0 )
+//                tunedIn = 2;
+//    }
     
-    if(tunedIn == 2)
-    {
-        if(toi == 0)
-            tunedIn = 3;
-        else
-        {
-            if(workingPort == 4001 || workingPort == 4003)
+//    if(tunedIn == 2)
+//    {
+//        if(toi == 0)
+//            tunedIn = 3;
+//        else
+//        {
+            /*if(workingPort == 4001 || workingPort == 4003)
             {
                 if( toi%2 != 0 )
                     addPacket(toi,tsi,sbn,esi,buffer,len);
@@ -2021,14 +2149,16 @@ void cachePacket(unsigned long long toi, unsigned long long tsi, unsigned int sb
             {
                 if( (toi - 2) % 3 == 0 )
                     addPacket(toi,tsi,sbn,esi,buffer,len);
-            }
-        }
+            }*/
+//	   if( toi%2 != 0 )
+//                    addPacket(toi,tsi,sbn,esi,buffer,len);
+//        }
             
-    }
+//    }
     
-    if(tunedIn == 3)
-    {
-        if(workingPort == 4001 || workingPort == 4003)
+//    if(tunedIn == 3)
+//    {
+        /*if(workingPort == 4001 || workingPort == 4003)
         {
             if( toi%2 == 0 && toi != 0 )
                 addPacket(toi,tsi,sbn,esi,buffer,len);
@@ -2037,9 +2167,13 @@ void cachePacket(unsigned long long toi, unsigned long long tsi, unsigned int sb
         {
             if( (toi - 3) % 3 == 0 && toi != 0)
                 addPacket(toi,tsi,sbn,esi,buffer,len);
-        }
-    }
-
+        }*/
+//	if( toi%2 == 0 && toi != 0 )
+//               addPacket(toi,tsi,sbn,esi,buffer,len);
+//    }
+//New code for adding all packets except EFDT packet.Not working
+  if(toi!=0)
+     addPacket(toi,tsi,sbn,esi,buffer,len);
 }
 
 /**
@@ -2110,6 +2244,7 @@ int recv_packet(alc_session_t *s) {
 		ch = s->ch_list[i];
 
 		if(!is_empty(ch->receiving_list)) {
+		  
 			assert(ch->rx_socket_thread_id != 0);
 
 			container = (alc_rcv_container_t*)pop_front(ch->receiving_list);
@@ -2158,7 +2293,7 @@ int recv_packet(alc_session_t *s) {
                 unsigned long long toi;    
 
 				retval = analyze_packet(recvbuf, recvlen, &toi, ch);
-
+ 
 				if(ch->s->cc_id == RLC) {
 
 					if(((ch->s->rlc->drop_highest_layer) && (ch->s->nb_channel != 1))) {
@@ -2176,7 +2311,17 @@ int recv_packet(alc_session_t *s) {
 						push_back(ch->receiving_list, (void*)container);
 					else //END
 						push_front(ch->receiving_list, (void*)container);
+					 //Niteesh- Calculate size of receiving linked list.
+						alc_list_node_t* cur = ch->receiving_list;
+						recvListSize = 0;
 
+						while (cur != NULL)
+						{
+						  ++recvListSize;
+						  cur = cur->next;
+						}
+
+						fprintf(logFilePtr, "Rec list SIZE %d\n", recvListSize);
 				}
 				else {
                     
@@ -2297,6 +2442,7 @@ void* rx_socket_thread(void *ch) {
 					timeInUsec = (unsigned long long)socket_time.tv_sec*1000000 + (unsigned long long)socket_time.tv_usec;
 					fprintf(logFilePtr,"FDTReception %llu\n",timeInUsec);
 				}
+				
 			}
 			//END
 
@@ -2387,9 +2533,11 @@ void* rx_thread(void *s) {
 	session = (alc_session_t *)s;
 
 	while(session->state == SActive || session->state == SAFlagReceived) {
-
+fprintf(logFilePtr, "Channels %d\n", session->nb_channel);
 		if(session->nb_channel != 0) {
 			retval = recv_packet(session);
+			//if(retval)
+			 // fprintf(logFilePtr,"Number of packets received= %d\n",retval);
 		}
 		else {
 			usleep(1000);
@@ -2819,7 +2967,14 @@ BOOL object_completed(trans_obj_t *to) {
 BOOL block_ready_to_decode(trans_block_t *tb) {
 
 	BOOL ready = FALSE;
-
+/*if(workingPort == 4001 || workingPort== 4003){
+FILE *fafter=fopen("ErrorDebug.txt", "a");
+//	fprintf(fafter, "ready= %d ",to->nb_of_ready_blocks);
+//	fprintf(fafter, "block struct=%d\n",to->bs->N);
+	fprintf(fafter,"\nrx_units= %d",tb->nb_of_rx_units);
+	fprintf(fafter, "tb->k = %d\n",tb->k);
+	fclose(fafter);
+						}*/
 	//Malek El Khatib 11.08.2014
 	//If multiple encoding symbols (es) are sent in payload, less units (i.e. packets) are to be received
 	if (numEncSymbPerPacket == 0)

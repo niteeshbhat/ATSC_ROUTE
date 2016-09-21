@@ -46,8 +46,8 @@ static int callback_dumb_increment(struct libwebsocket_context * this,
 
             if(workingPort == 4001 || workingPort == 4003)
             {
-                //FILE * tempff = fopen("mergedFile.mp4","w");
-                //fclose(tempff);
+                FILE * tempff = fopen("mergedFile.mp4","w");
+                fclose(tempff);
             }
 			// get the ball rolling
 			usleep(10000);
@@ -121,10 +121,10 @@ static int callback_dumb_increment(struct libwebsocket_context * this,
 				    libwebsocket_write(wsi, &respBuf[LWS_SEND_BUFFER_PRE_PADDING], toSend.length, LWS_WRITE_BINARY);
 
                     free(toSend.buffer);
-                    //FILE * tempff = fopen("mergedFile.mp4","a");
+                    FILE * tempff = fopen("mergedFile.mp4","a");
                     
-                    //fwrite(&respBuf[LWS_SEND_BUFFER_PRE_PADDING],1,toSend.length, tempff);
-                    //fclose(tempff);
+                    fwrite(&respBuf[LWS_SEND_BUFFER_PRE_PADDING],1,toSend.length, tempff);
+                    fclose(tempff);
 
                     
                     sprintf(packetFileName,"packet%3d.mp4",fileCounter);
@@ -201,7 +201,7 @@ static struct libwebsocket_protocols protocols[] = {
 void * serviceThread()
 {
 	 // server url will be http://localhost:9000
-	 int port = 9000;
+	 int port = 9002;
 	 const char *interface = NULL;
 	 struct libwebsocket_context *context;
 	 // we're not using ssl
@@ -216,10 +216,18 @@ void * serviceThread()
         usleep(100);
     
     if(workingPort == 4001 || workingPort == 4003) // For video sessions
-        port= 9001;  
+        port= 9000;  
     else if(workingPort == 4002 || workingPort == 4004)
-        port= 9002;   // New additional port
-		
+        port= 9001;   // New additional port
+	/*if(workingPort== 4001)
+	   port=9001;
+	else if(workingPort==4002)
+	  port=9003;
+	else if(workingPort==4003)
+	  port=9002;
+	else if(workingPort==4004)
+	  port=9004;*/
+	
 	memset(&info, 0, sizeof info);
 	info.port = port;
 	info.iface = interface;

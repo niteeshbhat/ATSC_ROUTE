@@ -73,6 +73,9 @@
 #include "apd.h"
 #endif
 
+FILE *deliveryLog;// File used to log ESI, TOI and ByteSum used for Unicast fetch from the receiver.
+unsigned int workingPort;
+
 /**
 * This is a private function which names all uncompleted objects.
 *
@@ -438,7 +441,7 @@ int flute_sender(arguments_t *a, int *s_id, unsigned long long *session_size) {
 	time_t systime;
 
 	unsigned long long curr_time;
-
+         
 #ifdef USE_FILE_REPAIR
 	char flute_fdt_file[MAX_PATH_LENGTH];
 	char fullpath[MAX_PATH_LENGTH];
@@ -559,7 +562,18 @@ int flute_sender(arguments_t *a, int *s_id, unsigned long long *session_size) {
 		fflush(stdout);
 		return -1;
 	}
-
+	//Create log files according to port numbers to log ESI, TOI and ByteSum used for Unicast fetch request from the receiver.
+	workingPort=atoi(ports[0]);
+	char str_temp[50]="Deliverylog_session";
+	//Log files are created only for video sessions.
+	if(workingPort== 4001 || workingPort== 4003){
+	strcat(str_temp, ports[0]);
+	strcat(str_temp, ".txt");
+	deliveryLog=fopen(str_temp, "w");
+	fprintf(deliveryLog, "***********TOI ESI ByteSum****************\n" );
+	}
+	
+	
 	for(i = 0; (int)i < a->alc_a.nb_channel; i++) {
 
 		if(a->alc_a.addr_type == 1) {
@@ -735,7 +749,9 @@ int flute_sender(arguments_t *a, int *s_id, unsigned long long *session_size) {
 	}
 
 	close_alc_session(*s_id);
-
+	if(workingPort== 4001 || workingPort== 4003){
+	    fclose(deliveryLog);
+	}
 	return retval;
 }
 

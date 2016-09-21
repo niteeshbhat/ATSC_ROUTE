@@ -43,6 +43,9 @@
 extern "C" {
 #endif
 
+//Defined in alc_rx.c
+extern int TuneInSeg;
+extern int firstEntry;
 //Malek El Khatib 14.05.2014
 //Start
 //This is defined in parse_args.c;

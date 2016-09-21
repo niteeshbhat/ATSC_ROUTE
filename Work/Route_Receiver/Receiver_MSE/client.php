@@ -189,8 +189,24 @@ var numSwitches = 0;
 var sumChangeTime = 0;
 var startTimeTotal = 0;
 var queue=[]; 
+//var videoBuffer;
+var tempBuffer;
+var FirstdataStream=1;
+var firstResponse=1;
+var sourceBuffer;
+var audioSourceBuffer;
+var UnicastLoading;
+var broacastAppend;
+var PTOFound = 0;
+var videoPTOFound;
+var autoPlaybackDone;
+var TuneTotaltime=0;
+var liveEdge;
+var TuneinPhp;
 function PlayChannel(channel)
 {
+   liveEdge=0;
+
     $.post(
           "Cleanup.php",
           {channel:channel},
@@ -205,21 +221,117 @@ function PlayChannel(channel)
 	  {channel:channel},
 	  function(response)
 	  {
-	      if(response == "Started channel 1")
+	  videoPTOFound=false;
+	  autoPlaybackDone=false;
+	      returned=JSON.parse(response);
+	       console.log("RESPONSE=" +returned.message);
+	      console.log("RESPONSE TOI=" +returned.toi);
+	      console.log("RESPONSE ESI=" +returned.esi);
+	      console.log("RESPONSE Port=" +returned.port);
+	      console.log("RESPONSE TuneIn=" +returned.TuneinPhp);
+	      if(returned.message == "Started channel 1")
 		localChannel = 1;
 	      else
 		localChannel = 2;
-		
-         mediaSource = new MediaSource();
-
-        video.src = window.URL.createObjectURL(mediaSource);
-        mediaSource.addEventListener('sourceopen', callback, false);
-        mediaSource.addEventListener('webkitsourceopen', callback, false);
-	{
-	    var tt = new Date;
-        console.log("Added MSE: " + tt + tt.getMilliseconds());
-    }
-
+	       TuneinPhp=returned.TuneinPhp;	
+	       mediaSource = new MediaSource();
+	
+	          
+              //Unicast fetch section
+	      if(returned.toi %2 ==0 && returned.esi!=0){
+	      UnicastLoading=1;
+	      $.post(
+                    "../../Route_Sender/bin/UnicastSender.php",
+                    {TOI:returned.toi, ESI:returned.esi, port:returned.port},
+                    function(data)
+                    {
+		      
+		      var UniFetch = new Date();
+		      console.log("Unifetched: "+UniFetch + UniFetch.getMilliseconds());
+		      
+			  var xhr = new XMLHttpRequest();
+			  xhr.open('GET', 'http://10.4.246.249/ATSC_ROUTE/Work/Route_Receiver/Receiver_MSE/UnicastLoad.php?channel='+channel,true);
+			  xhr.responseType = 'arraybuffer';
+			  xhr.send(); 		
+			  xhr.onreadystatechange = function(){
+			      if (this.readyState == 4 && this.status == 200){
+				  //Load init segment and Unicast fetched part of segment.
+				   tempres=this.response;
+				 
+				     console.log("Unicast+init return size"+ tempres.byteLength);
+					          
+					tempBuffer =new Uint8Array(tempres);
+					//console.log("REQ return size"+ tempBuffer.byteLength);
+				     UniFetchDone =Date.now();
+					console.log("Added MSE after Unicast fetch: " + UniFetchDone);
+			  
+				    video.src = window.URL.createObjectURL(mediaSource);
+				    mediaSource.addEventListener('sourceopen', callback, false);
+				    mediaSource.addEventListener('webkitsourceopen', callback, false);
+				    {
+					var tt = new Date;
+					console.log("Added MSE after Unicast fetch: " + tt + tt.getMilliseconds());
+				      
+				    }
+				    //Get the live edge using MPD AST
+				     var xhr_live = new XMLHttpRequest();
+				    xhr_live.open('GET', 'http://10.4.246.249/ATSC_ROUTE/Work/Route_Receiver/Receiver_MSE/GetTuneInOffset.php?channel='+channel+'&TuneinPhp='+TuneinPhp,true);
+				    xhr_live.responseType = 'text';
+				    xhr_live.send(); 
+				    xhr_live.onreadystatechange = function(){
+				     if (this.readyState == 4 && this.status == 200){
+					  OffsetTillTunein=this.response;
+				 
+					  console.log(" OffsetTillTunein  "+ OffsetTillTunein);
+							
+					     // tempBuffer1 =new Uint8Array(tempres1);
+					   timeDiff=UniFetchDone/1000 -TuneinPhp;
+					   liveEdge=Number(OffsetTillTunein)+Number(timeDiff);
+					  
+					      console.log("Time between tune in and uni fetch completion " + timeDiff);
+					      console.log("Live Edge is " + liveEdge);
+					      
+				     }
+				    }
+				    //
+				    //Load other part of segment, i.e received through broadcast.
+				    //Not required now as websockets get these packets directly.
+				   /* var xhr1 = new XMLHttpRequest();
+				    xhr1.open('GET', 'http://192.168.1.109/ATSC_ROUTE/Work/Route_Receiver/Receiver_MSE/BroadcastLoad.php?channel='+channel,true);
+				    xhr1.responseType = 'arraybuffer';
+				    xhr1.send(); 
+				    xhr1.onreadystatechange = function(){
+				     if (this.readyState == 4 && this.status == 200){
+					  tempres1=this.response;
+				 
+					  console.log("Broadcast partial segment return size"+ tempres1.byteLength);
+							
+					      tempBuffer1 =new Uint8Array(tempres1);
+					   //   console.log("REQ return size"+ tempBuffer1.byteLength);
+					      var tt = new Date;
+					      console.log("After broadcast partial fetch: " + tt + tt.getMilliseconds());
+					      broacastAppend=setInterval(function(){ UnicastAppend(tempBuffer1); }, 1);
+					      
+				     }
+				    }*/
+				    
+			      }
+			  }
+			 	  
+                    }
+                   );
+	      }//Till here
+	      else{
+		       UnicastLoading=0;
+		      video.src = window.URL.createObjectURL(mediaSource);
+		      mediaSource.addEventListener('sourceopen', callback, false);
+		      mediaSource.addEventListener('webkitsourceopen', callback, false);
+		      {
+			  var tt = new Date;
+			  console.log("Added MSE: " + tt + tt.getMilliseconds());
+		      }      
+	      }            
+	      
 	  }
 	);
 	{
@@ -249,15 +361,65 @@ var _appendBuffer = function(buffer1, buffer2) {
 
 function playEvent()
 {
-    var timeNow = new Date;
+    var timeNow = new Date();
     var channelChangeDuration = timeNow - startTime;
     console.log("Play event called: " + timeNow + timeNow.getMilliseconds());
-    sumChangeTime = sumChangeTime + channelChangeDuration;
+    sumChangeTime = sumChangeTime + TuneTotaltime;
     numSwitches = numSwitches + 1;
 	logger.clear();
-    logger.log('Last channel change time: ' + channelChangeDuration + " msec, Average: " + (sumChangeTime/numSwitches).toFixed(2) + " msec");
+    logger.log('Last channel change time: ' + TuneTotaltime + " msec, Average: " + (sumChangeTime/numSwitches).toFixed(2) + " msec");
 }
+function UnicastAppend(Buffers)
+{
+ //Unicast fetch loading section
+//if(UnicastLoading==1){
+  sourceBuffer.appendBuffer(Buffers);
+  console.log("VIDEOBUFFER appending started here first- Unicast");
+  //console.log("unicast video buffer length: " + Buffers.length);
+  //console.log(sourceBuffer);
+  UnicastLoading=0;
+/* }
+  else{
+  if(sourceBuffer.updating== false )
+    {
+	  sourceBuffer.appendBuffer(Buffers);
+	  console.log("VIDEOBUFFER appending started here for Broadcast partial");
+	
+	  clearInterval(broacastAppend);
+    }
+  }*/
+  //Start playback if possible
+   /*if (sourceBuffer.buffered.length > 0) 
+				{
+					if(videoPTOFound == false && sourceBuffer.buffered.start(0) > PTOFound)
+					{ 
+					if(liveEdge==0)
+						PTOFound = sourceBuffer.buffered.start(0);
+				        else
+				                PTOFound=liveEdge;
+				                
+						console.log("PTO value "+PTOFound);
+						video.currentTime = PTOFound;
+						videoPTOFound = true;
+						{
+						    var tt = new Date;
+                            console.log("Video PTO found earlier: " + tt + tt.getMilliseconds());
+						}
+					
 
+						
+						    var tt = new Date;
+                            console.log("Play called from video earlier: " + tt + tt.getMilliseconds());
+						TuneTotaltime=new Date() - startTime;
+						if(liveEdge==0)
+						    video.play(); // Start playing after 1st chunk is appended.
+						else
+						   setTimeout(function(){ video.play(); }, 175); // 175 ms calculated from transcoding experiments.
+						autoPlaybackDone=true;
+					}
+				}*/
+
+}
 function callback(e)
 {
     {
@@ -265,27 +427,33 @@ function callback(e)
         console.log("MSE callback started: " + tt + tt.getMilliseconds());
     }
 
-  var sourceBuffer = mediaSource.addSourceBuffer('video/mp4; codecs="avc1.640028"');
-  var audioSourceBuffer = mediaSource.addSourceBuffer('audio/mp4; codecs="mp4a.40.2"');
-
+   sourceBuffer = mediaSource.addSourceBuffer('video/mp4; codecs="avc1.640028"');
+   audioSourceBuffer = mediaSource.addSourceBuffer('audio/mp4; codecs="mp4a.40.2"');
+  console.log(sourceBuffer);
+  if(UnicastLoading==1){
+    UnicastAppend(tempBuffer);
+  }
+  
+  //Till here
   logString = "";//'mediaSource readyState: ' + this.readyState + "\n";
 
   //logger.log(logString);
 
   window.WebSocket = window.WebSocket || window.MozWebSocket;
-
-        var websocket = new WebSocket('ws://127.0.0.1:9001',
+    
+    
+        var websocket = new WebSocket('ws://127.0.0.1:9000',
                                       'dumb-increment-protocol');
 									  
-        var websocketAudio = new WebSocket('ws://127.0.0.1:9002',
-                                      'dumb-increment-protocol');
+        var websocketAudio = new WebSocket('ws://127.0.0.1:9001',
+                                       'dumb-increment-protocol');
 
         websocket.onopen = function () {
 			websocket.send("video");
         };
 
         websocket.onerror = function () {
-            setTimeout(function(){ websocket = new WebSocket('ws://127.0.0.1:9001','dumb-increment-protocol'); }, 50);
+            setTimeout(function(){ websocket = new WebSocket('ws://127.0.0.1:9000','dumb-increment-protocol'); }, 50);
         };
 	
         websocketAudio.onopen = function () {
@@ -293,7 +461,7 @@ function callback(e)
         };
 
         websocketAudio.onerror = function () {
-            setTimeout(function(){ websocketAudio = new WebSocket('ws://127.0.0.1:9002','dumb-increment-protocol'); }, 50);
+            setTimeout(function(){ websocketAudio = new WebSocket('ws://127.0.0.1:9001','dumb-increment-protocol'); }, 50);
         };
 		
 		// Convert an integer to a string made up of the bytes in network/big-endian order.
@@ -303,10 +471,10 @@ function callback(e)
 			 return newv;
 		}
 		
-		var autoPlaybackDone = false;
-		var PTOFound = 0;
-		var videoPTOFound = false;
-		var audioPTOFound = false;
+		//var autoPlaybackDone = false;
+		//var PTOFound = 0;
+		//var videoPTOFound = false;
+		var audioPTOFound = false;32000;
 		var videoBuffer;
 		var initVideoBuffer = true;
 		var audioBuffer;
@@ -315,6 +483,10 @@ function callback(e)
 		var minAudioAppendLength = 1000;
 		var lastAppendTime = 0;
 		var lastAppendTimeAudio = 0;
+		var FirstTime=1;
+		var FirstTimeAudio=1;
+	var secondTime;
+	firstAppend=1;
 
         websocket.onmessage = function (message)
 		{
@@ -324,50 +496,69 @@ function callback(e)
 			fileReader.onload = function() 
 			{
 			    arraybuffer = this.result;
-			    //console.log(this.result);
+			       
 				arrayData = new Uint8Array(arraybuffer);
+				console.log("PacketLength " + arrayData.length);
+				
 				if(initVideoBuffer == true)
 				{
 					videoBuffer = arrayData;
-                    initVideoBuffer = false;				
+					//if(firstAppend){
+					//videoBuffer = _appendBuffer(videoBuffer,tempBuffer);
+					//console.log("After tempBuffer append " + videoBuffer.length);
+                    initVideoBuffer = false;		
+                    //firstAppend=0;
+                    //}
                 }
 				else
 				{					
 					videoBuffer = _appendBuffer(videoBuffer,arrayData);
 				}
-				//console.log(videoBuffer);
+			
 			    var period = 0;
 			    var timeNow = new Date();
 			    if(lastAppendTime != 0)
 			    {
 			        period = timeNow - lastAppendTime;
-			        //console.log(period);
+			        
 		        }
 		        else
 		            lastAppendTime = timeNow;
 		        
 				if(period > 100)
 				{
-					initVideoBuffer = true;
-					console.log("Video source buffer");
-				    console.log(sourceBuffer);
-			//if (!sourceBuffer.updating )
-			     // queue.push(videoBuffer);
-			//else
+					 //initVideoBuffer = true;
+					
+				    if(video.error != null)
+					console.log("media error code "+video.error.code);
 			
-			        sourceBuffer.appendBuffer(videoBuffer);
+				if (sourceBuffer.updating== false && UnicastLoading ==0){
+				 
+				      sourceBuffer.appendBuffer(videoBuffer);//queue.slice(0));//queue.shift());
+				
+				      initVideoBuffer = true;
+				      
+				  
+				}
+			
 			        
     		        lastAppendTime = new Date();	
  					if(!autoPlaybackDone)
                         console.log("Appending video buffer length: " + videoBuffer.byteLength + ", time: " + lastAppendTime + lastAppendTime.getMilliseconds());
 
 				}
-				
+				//console.log("VIDEoBUfferLength"+ sourceBuffer.buffered.length);
 				if (sourceBuffer.buffered.length > 0) 
 				{
 					if(videoPTOFound == false && sourceBuffer.buffered.start(0) > PTOFound)
 					{
+					if(liveEdge==0)
 						PTOFound = sourceBuffer.buffered.start(0);
+				        else
+				                PTOFound=liveEdge;
+				                
+						
+						console.log("PTO value "+PTOFound);
 						video.currentTime = PTOFound;
 						videoPTOFound = true;
 						{
@@ -382,7 +573,11 @@ function callback(e)
 						    var tt = new Date;
                             console.log("Play called from video: " + tt + tt.getMilliseconds());
                         }
-						video.play(); // Start playing after 1st chunk is appended.
+						TuneTotaltime=new Date() - startTime;
+						if(liveEdge==0)
+						    video.play(); // Start playing after 1st chunk is appended.
+						else
+						   setTimeout(function(){ video.play(); }, 175);// 175 ms calculated from transcoding experiments.
 						autoPlaybackDone = true;
 					}
 				}
@@ -426,31 +621,48 @@ function callback(e)
 
 				if(period > 100)
 				{
-					initAudioBuffer = true;
-					console.log("Audio source buffer");
-					console.log(sourceBuffer);
-			        audioSourceBuffer.appendBuffer(audioBuffer);
+					
+				if (audioSourceBuffer.updating== false ){
+				
+				    audioSourceBuffer.appendBuffer(audioBuffer);//queueAudio.slice(0));//queue.shift());
+				    initAudioBuffer = true;
+				  
+				}
+			
+			        //audioSourceBuffer.appendBuffer(audioBuffer);
     		        lastAppendTimeAudio = new Date();
  					if(!autoPlaybackDone)
                         console.log("Appending audio buffer length: " + audioBuffer.byteLength + ", time: " + lastAppendTimeAudio + lastAppendTimeAudio.getMilliseconds());
 				}
 				
+				//console.log("AUDIOBUfferLength"+ audioSourceBuffer.buffered.length);
 				if (audioSourceBuffer.buffered.length > 0) 
 				{
+				
 					  if(audioPTOFound == false && audioSourceBuffer.buffered.start(0) > PTOFound)
 				  	{
-				  		PTOFound = audioSourceBuffer.buffered.start(0);
+				  	if(liveEdge==0)
+						PTOFound = audioSourceBuffer.buffered.start(0);
+				        else
+				                PTOFound=liveEdge;
+				                
+				  		
 						video.currentTime = PTOFound;
 						audioPTOFound = true;
 						{
 						    var tt = new Date;
                             console.log("Audio PTO found: " + tt + tt.getMilliseconds());
+                            console.log("PTO value "+PTOFound);
                         }
 				  	}
 					  
 					if(!autoPlaybackDone)
-					{
-						video.play(); // Start playing after 1st chunk is appended.
+					{	TuneTotaltime=new Date() - startTime;
+					        if(liveEdge==0)
+						    video.play(); // Start playing after 1st chunk is appended.
+						else
+						   setTimeout(function(){ video.play(); }, 175);
+						
 						autoPlaybackDone = true;
 						{
 						    var tt = new Date;

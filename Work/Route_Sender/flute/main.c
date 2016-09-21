@@ -60,6 +60,7 @@ int s_id; /**< session identifier */
 //This is defined in main;
 extern char* logFile;
 extern	FILE* logFilePtr;
+
 //END
 
 /**

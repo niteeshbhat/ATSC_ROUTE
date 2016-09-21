@@ -65,7 +65,8 @@ unsigned short nb_of_symbols;	/*This is used to configure how many encoding symb
 
 unsigned long long segmentMetaData=0L; /**<This field contains the size of the segment's meta data in bytes>*/
 //End
-
+// FILE *deliveryLog;
+//extern unsigned int workingPort;
 /** 
  * This is a private function which adds packet to transmission queue when TX_THREAD mode is used.
  * 
@@ -617,7 +618,7 @@ float session_kbit_rate(const alc_session_t *s) {
     }
 
     /*printf("\n%f", curr_time-s->ftimestarttime);
-    printf(" %f", actual_kbit_rate);*/
+    printf(" %f", actual_kbit_rate);*/ 
     return actual_kbit_rate;
 }
 
@@ -642,7 +643,7 @@ int alc_send(int s_id, int tx_mode, char *buf, int buf_len,
 	double loss_prob = 0;
 	int retval = 0;
 	double tx_percent = 0;
-
+	int tr_unitcount;
 	
     double packetpersec = 0;
     double interval = 0;
@@ -977,6 +978,7 @@ int alc_send(int s_id, int tx_mode, char *buf, int buf_len,
 #endif
 				}
 			}
+			
 
 			if(s->state == SExiting) {
 				while(1) {
@@ -1137,6 +1139,24 @@ int alc_send(int s_id, int tx_mode, char *buf, int buf_len,
 			numOfPackets++;
 			//End
 		}
+		//- To write TOI ,ESI and Bit ranges into a log file for Unicast fetch request from the receiver later. 
+		if(workingPort== 4001 || workingPort== 4003){
+			trans_unit_t *tr_unit_write = tr_block->unit_list;
+			int tr_block_lensum= 0;
+			for (tr_unitcount=0; tr_unitcount< tr_block->n; tr_unitcount++) {
+			
+			  	if(toi!= FDT_TOI){
+				  tr_block_lensum+=tr_unit_write->len;
+					fprintf(deliveryLog, "TOI=%d ESI=%d ByteSum=%d\n", toi, tr_unit_write->esi, tr_block_lensum );
+			  
+					//if(tr_unit_write->esi == (tr_block->n - 1)) {
+					//	break;
+					//}
+					tr_unit_write++;
+				}
+			}
+		}
+		//Log file writing completes.
 
 		//Malek El Khatib 11.08.2014
 		//printf("The number of symbols and packets sent are: %d %d\n",symbolsSent,numOfPackets); //Malek El Khatib 19.08.2014 Commented this

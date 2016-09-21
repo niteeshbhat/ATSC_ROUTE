@@ -156,7 +156,7 @@ int recvfile(int s_id, char *filepath, unsigned long long toi,
   int point;
   int ch = '/';
   int i = 0;
- 
+  FILE *fabcd;
 #ifdef USE_OPENSSL
   char *md5_digest = NULL;
 #endif
@@ -558,7 +558,7 @@ int fdtbasedrecv(int rx_memory_mode, BOOL openfile, flute_receiver_t *receiver) 
   BOOL is_all_files_received;
   BOOL is_printed = FALSE;
   BOOL any_files_received = FALSE;
-  extern BOOL sendFDTAfterObj;
+  
   int retcode;
   
   unsigned char content_enc_algo = 0;
@@ -571,7 +571,7 @@ int fdtbasedrecv(int rx_memory_mode, BOOL openfile, flute_receiver_t *receiver) 
   int point;
   int ch = '/';
   uri_t *uri = NULL;
-
+FILE *fabcd;
   //Malek El Khatib 07.05.2014
   //Start
   unsigned long long timeInUsec = 0L;		//Used later for timing purposes
@@ -590,11 +590,11 @@ int fdtbasedrecv(int rx_memory_mode, BOOL openfile, flute_receiver_t *receiver) 
   /* rx_memory_mode == 0 */
   char *buf = NULL;
   int fd;
-  extern unsigned int workingPort;
+
   char tmp_filename[MAX_PATH_LENGTH];
 
   session_basedir = get_session_basedir(receiver->s_id);
-
+  
   while(1) {
     
     if(get_session_state(receiver->s_id) == SExiting) {
@@ -603,15 +603,13 @@ int fdtbasedrecv(int rx_memory_mode, BOOL openfile, flute_receiver_t *receiver) 
     else if(get_session_state(receiver->s_id) == STxStopped) {
       return -3;
     }
-   
+    
     is_all_files_received = TRUE;
     
     time(&systime);
     curr_time = systime + 2208988800U;
     
-	
-	  next_file = receiver->fdt->file_list;
-	
+    next_file = receiver->fdt->file_list;
 
     while(next_file != NULL) {
 
@@ -680,7 +678,7 @@ int fdtbasedrecv(int rx_memory_mode, BOOL openfile, flute_receiver_t *receiver) 
       
       next_file = file->next;
     }
-     
+    
     i = 0;
     retcode = 0;
     toi = 0;
@@ -731,14 +729,12 @@ int fdtbasedrecv(int rx_memory_mode, BOOL openfile, flute_receiver_t *receiver) 
 	}
       }
     }
-    
+
     if(rx_memory_mode == 1 || rx_memory_mode == 2) {
 
       tmp_file_name = alc_recv3(receiver->s_id, &toi, &retcode);
-     
-     
+      
       if(tmp_file_name == NULL) {
-	
 		return retcode;
       }
       memset(tmp_filename, 0, MAX_PATH_LENGTH);
@@ -763,10 +759,8 @@ int fdtbasedrecv(int rx_memory_mode, BOOL openfile, flute_receiver_t *receiver) 
     else {
       
       buf = alc_recv2(receiver->s_id, &toi, &transfer_len, &retcode);
-       
+      
       if(buf == NULL) {
-	
-    
 	return retcode;
       }
       
@@ -841,9 +835,8 @@ int fdtbasedrecv(int rx_memory_mode, BOOL openfile, flute_receiver_t *receiver) 
 	gettimeofday(&processing_time, NULL);
 	timeInUsec = (unsigned long long)processing_time.tv_sec*1000000 + (unsigned long long)processing_time.tv_usec;
 	fprintf(logFilePtr,"%s %llu ", file->location, timeInUsec);
-	
 	//END Malek El Khatib
-     
+    
     if(file->encoding == NULL) {
       content_enc_algo = 0;
     }
@@ -965,8 +958,7 @@ int fdtbasedrecv(int rx_memory_mode, BOOL openfile, flute_receiver_t *receiver) 
     uri = parse_uri(file->location, strlen(file->location));
   
     filepath = get_uri_host_and_path(uri);
-    fprintf(logFilePtr,"\nFilePth is here");
-    fprintf(logFilePtr, filepath);
+    
     if(!(tmp = (char*)calloc((strlen(filepath) + 1), sizeof(char)))) {
       printf("Could not alloc memory for tmp-filepath!\n");
       fflush(stdout);
@@ -1098,8 +1090,7 @@ int receiver_in_fdt_based_mode(arguments_t *a, flute_receiver_t *receiver) {
   int retval = 0;
   int retcode = 0;
   char *cont_desc = NULL;
-
-
+ 
   if(strcmp(a->sdp_file, "") != 0) {
     cont_desc = sdp_attr_get(a->sdp, "content-desc");
   }
@@ -1129,10 +1120,8 @@ int receiver_in_fdt_based_mode(arguments_t *a, flute_receiver_t *receiver) {
   
   fflush(stdout);
   //Malek El Khatib.....JUST A COMMENT: THIS NEEDS TO BE MODIFIED TO ALLOW RECEPTION BEFORE FDT
-  
   while(receiver->fdt == NULL) {
-     
-    
+
     if(get_session_state(receiver->s_id) == SExiting) {
       return -2;
     }
@@ -1145,7 +1134,6 @@ int receiver_in_fdt_based_mode(arguments_t *a, flute_receiver_t *receiver) {
 #else
     usleep(1000);
 #endif
-    
     continue;
   }
   
@@ -1492,6 +1480,7 @@ void* fdt_thread(void *s) {
   file_t *file;
   file_t *next_file;
   int retval;
+  FILE *fabcd;
   
   unsigned long long curr_time;
   
@@ -1505,12 +1494,10 @@ void* fdt_thread(void *s) {
 
   unsigned char fdt_content_enc_algo = 0;
   int fdt_instance_id = 0;
-  extern unsigned int workingPort;
-  unsigned long long timeInUsec = 0L;		//Used later for timing purposes
-  struct timeval processing_time;
+  
   receiver = (flute_receiver_t*)s;
   
-  while(get_session_state(receiver->s_id) == SActive) { 
+  while(get_session_state(receiver->s_id) == SActive) {
     
     time(&systime);
     curr_time = systime + 2208988800U;
@@ -1519,7 +1506,7 @@ void* fdt_thread(void *s) {
     if(receiver->efdt == NULL) {
  
       buf = fdt_recv(receiver->s_id, &buflen, &retval, &fdt_content_enc_algo, &fdt_instance_id);
-     
+       
  
 		
       if(buf == NULL) {
@@ -1719,7 +1706,7 @@ void* fdt_thread(void *s) {
       updated = 0;
 
       buf = fdt_recv(receiver->s_id, &buflen, &retval, &fdt_content_enc_algo, &fdt_instance_id);
-   
+   	
       if(buf == NULL) {
 	
 	if(retval == -1) {
@@ -1805,7 +1792,13 @@ void* fdt_thread(void *s) {
   updated = update_fdt(receiver->fdt, fdt_instance);
       //receiver->fdt = fdt_instance;
       //receiver->efdt= efdt_instance;
-  
+      FILE *fabcd;
+   fabcd=fopen("ErrorDebugging.txt", "w");
+			 
+		
+			//  fprintf(fabcd, "%llu\n", tmp->toi);
+			  fprintf(fabcd, fdt_instance->file_list);
+			  fclose(fabcd);
       if(updated < 0) {
 	continue;
       }
